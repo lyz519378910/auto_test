@@ -1,0 +1,33 @@
+LoginPage:
+  username: /html/body/form/table/tbody/tr/td/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[1]/td[2]/div/input
+  password: /html/body/form/table/tbody/tr/td/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[2]/td[2]/div/input
+  customer: /html/body/form/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr/td[5]/table/tbody/tr/td/div/a
+  customer_add: /html/body/form/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[2]/td[13]/div/span/a[1]
+  click: //*[@id="in1"]
+  correct_message: /html/body/table/tbody/tr[1]/td/span
+  mainFrame1: /html/body/form/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr/td[5]/table/tbody/tr/td/div/a
+  button1: /html/body/form/table/tbody/tr[1]/td/table/tbody/tr/td[2]/table/tbody/tr/td[4]/input
+CustomerAdd:
+  customerName: /html/body/form/table[1]/tbody/tr[2]/td[2]/input
+  customerEmail: /html/body/form/table[1]/tbody/tr[4]/td[4]/input
+  customerBirthday1: customerBirthday
+  customerAddMan: /html/body/form/table[1]/tbody/tr[8]/td[2]/input
+  click: /html/body/form/table[2]/tbody/tr/td[2]/input
+CustomerAssign:
+  customerassign: /html/frameset/frameset/frame[1]
+  ca_click: //*[@id="submenu1"]/div/table/tbody/tr[1]/td/table/tbody/tr[2]/td[2]/table/tbody/tr/td/span/a
+  ca_click_1: /html/body/form/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[2]/td[9]/div/span/a
+  ca_submit: /html/body/form/table[2]/tbody/tr/td[2]/input
+CustomerCare:
+  cc_click: /html/body/table/tbody/tr[2]/td/table/tbody/tr[1]/td/table/tbody/tr[2]/td/div/table/tbody/tr[1]/td/table/tbody/tr[3]/td[2]/table/tbody/tr/td/span/a
+  cc_add: /html/body/form/table/tbody/tr[1]/td/table/tbody/tr/td[2]/table/tbody/tr/td[4]/input
+  cc_subject: /html/body/form/table[1]/tbody/tr[2]/td[2]/input
+  cc_care_time: careNexttime
+  cc_submit: /html/body/form/table[2]/tbody/tr/td[2]/input
+  cc_customerInput: /html/body/form/table/tbody/tr[1]/td/table/tbody/tr/td[2]/table/tbody/tr/td[1]/input
+  cc_queryType: /html/body/form/table/tbody/tr[1]/td/table/tbody/tr/td[2]/table/tbody/tr/td[2]/select
+  cc_search_click: /html/body/form/table/tbody/tr[1]/td/table/tbody/tr/td[2]/table/tbody/tr/td[3]/input
+  cc_search_page: /html/body/form/table/tbody/tr[3]/td/table/tbody/tr/td[2]/table/tbody/tr/td[1]
+  cc_judge_queryType: /html/body/form/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[2]/td[3]/div/span
+  cc_judge_querytype: /html/body/form/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[3]/td[3]/div/span
+  cc_judge_queryype1: /html/body/form/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[4]/td[3]/div/span

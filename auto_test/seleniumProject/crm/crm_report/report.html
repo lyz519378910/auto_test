@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function find_all(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sort_column(elem) {
+    toggle_sort_states(elem);
+    var colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    var key;
+    if (elem.classList.contains('numeric')) {
+        key = key_num;
+    } else if (elem.classList.contains('result')) {
+        key = key_result;
+    } else {
+        key = key_alpha;
+    }
+    sort_table(elem, key(colIndex));
+}
+
+function show_all_extras() {
+    find_all('.col-result').forEach(show_extras);
+}
+
+function hide_all_extras() {
+    find_all('.col-result').forEach(hide_extras);
+}
+
+function show_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.remove("collapsed");
+    expandcollapse.classList.remove("expander");
+    expandcollapse.classList.add("collapser");
+}
+
+function hide_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.add("collapsed");
+    expandcollapse.classList.remove("collapser");
+    expandcollapse.classList.add("expander");
+}
+
+function show_filters() {
+    var filter_items = document.getElementsByClassName('filter');
+    for (var i = 0; i < filter_items.length; i++)
+        filter_items[i].hidden = false;
+}
+
+function add_collapse() {
+    // Add links for show/hide all
+    var resulttable = find('table#results-table');
+    var showhideall = document.createElement("p");
+    showhideall.innerHTML = '<a href="javascript:show_all_extras()">Show all details</a> / ' +
+                            '<a href="javascript:hide_all_extras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    find_all('.col-result').forEach(function(elem) {
+        var collapsed = get_query_parameter('collapsed') || 'Passed';
+        var extras = elem.parentNode.nextElementSibling;
+        var expandcollapse = document.createElement("span");
+        if (extras.classList.contains("collapsed")) {
+            expandcollapse.classList.add("expander")
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add("collapsed");
+            expandcollapse.classList.add("expander");
+        } else {
+            expandcollapse.classList.add("collapser");
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener("click", function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains("collapsed")) {
+                show_extras(event.currentTarget);
+            } else {
+                hide_extras(event.currentTarget);
+            }
+        });
+    })
+}
+
+function get_query_parameter(name) {
+    var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () {
+    reset_sort_headers();
+
+    add_collapse();
+
+    show_filters();
+
+    sort_column(find('.initial-sort'));
+
+    find_all('.sortable').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  sort_column(elem);
+                              }, false)
+    });
+
+};
+
+function sort_table(clicked, key_func) {
+    var rows = find_all('.results-table-row');
+    var reversed = !clicked.classList.contains('asc');
+    var sorted_rows = sort(rows, key_func, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    var thead = document.getElementById("results-table-head");
+    document.getElementById('results-table').remove();
+    var parent = document.createElement("table");
+    parent.id = "results-table";
+    parent.appendChild(thead);
+    sorted_rows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName("BODY")[0].appendChild(parent);
+}
+
+function sort(items, key_func, reversed) {
+    var sort_array = items.map(function(item, i) {
+        return [key_func(item), i];
+    });
+
+    sort_array.sort(function(a, b) {
+        var key_a = a[0];
+        var key_b = b[0];
+
+        if (key_a == key_b) return 0;
+
+        if (reversed) {
+            return (key_a < key_b ? 1 : -1);
+        } else {
+            return (key_a > key_b ? 1 : -1);
+        }
+    });
+
+    return sort_array.map(function(item) {
+        var index = item[1];
+        return items[index];
+    });
+}
+
+function key_alpha(col_index) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[col_index].firstChild.data.toLowerCase();
+    };
+}
+
+function key_num(col_index) {
+    return function(elem) {
+        return parseFloat(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function key_result(col_index) {
+    return function(elem) {
+        var strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+                       'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function reset_sort_headers() {
+    find_all('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    find_all('.sortable').forEach(function(elem) {
+        var icon = document.createElement("div");
+        icon.className = "sort-icon";
+        icon.textContent = "vvv";
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove("desc", "active");
+        elem.classList.add("asc", "inactive");
+    });
+}
+
+function toggle_sort_states(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        reset_sort_headers();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function is_all_rows_hidden(value) {
+  return value.hidden == false;
+}
+
+function filter_table(elem) {
+    var outcome_att = "data-test-result";
+    var outcome = elem.getAttribute(outcome_att);
+    class_outcome = outcome + " results-table-row";
+    var outcome_rows = document.getElementsByClassName(class_outcome);
+
+    for(var i = 0; i < outcome_rows.length; i++){
+        outcome_rows[i].hidden = !elem.checked;
+    }
+
+    var rows = find_all('.results-table-row').filter(is_all_rows_hidden);
+    var all_rows_hidden = rows.length == 0 ? true : false;
+    var not_found_message = document.getElementById("not-found-message");
+    not_found_message.hidden = !all_rows_hidden;
+}
+</script>
+    <h1>report.html</h1>
+    <p>Report generated on 31-Oct-2020 at 10:37:51 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v2.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "0.13.1", "py": "1.9.0", "pytest": "6.1.2"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Windows-7-6.1.7601-SP1</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"html": "2.1.1", "metadata": "1.10.0", "rerunfailures": "9.1.1"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.8.1</td></tr></table>
+    <h2>Summary</h2>
+    <p>2 tests ran in 22.16 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="passed">2 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>, <input checked="true" class="filter" data-test-result="rerun" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="rerun">0 rerun</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable numeric" col="duration">Duration</th>
+          <th>Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_crm_web_customer_care_add.py::Test_CustomerCareAdd::test_customer_care_add_success</td>
+          <td class="col-duration">0.46</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log setup------------------------------- <br/>INFO     root:crm_log.py:30 ------账号------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/form/table/tbody/tr/td/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[2]/td[2]/div/input&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element/ba6cd92e-0f6f-44ec-a7c3-4592bdc5a270/value {&quot;text&quot;: &quot;123456&quot;, &quot;value&quot;: [&quot;1&quot;, &quot;2&quot;, &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;6&quot;], &quot;id&quot;: &quot;ba6cd92e-0f6f-44ec-a7c3-4592bdc5a270&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element/ba6cd92e-0f6f-44ec-a7c3-4592bdc5a270/value HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------密码------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;//*[@id=\&quot;in1\&quot;]&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/actions {&quot;actions&quot;: [{&quot;type&quot;: &quot;pointer&quot;, &quot;parameters&quot;: {&quot;pointerType&quot;: &quot;mouse&quot;}, &quot;id&quot;: &quot;mouse&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pointerMove&quot;, &quot;duration&quot;: 250, &quot;x&quot;: 0, &quot;y&quot;: 0, &quot;origin&quot;: {&quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;eb3c1589-0a38-4810-8994-c70b42f2ef50&quot;}}, {&quot;type&quot;: &quot;pointerDown&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}, {&quot;type&quot;: &quot;pointerUp&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}]}, {&quot;type&quot;: &quot;key&quot;, &quot;id&quot;: &quot;key&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}]}]}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/actions HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------登录------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/frame/parent {}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/frame/parent HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/frameset/frameset/frame[1]&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/frame {&quot;id&quot;: {&quot;ELEMENT&quot;: &quot;1647b71b-f406-4e6b-8640-c3b8d93135cc&quot;, &quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;1647b71b-f406-4e6b-8640-c3b8d93135cc&quot;}}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/frame HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/table/tbody/tr[2]/td/table/tbody/tr[1]/td/table/tbody/tr[2]/td/div/table/tbody/tr[1]/td/table/tbody/tr[3]/td[2]/table/tbody/tr/td/span/a&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/actions {&quot;actions&quot;: [{&quot;type&quot;: &quot;pointer&quot;, &quot;parameters&quot;: {&quot;pointerType&quot;: &quot;mouse&quot;}, &quot;id&quot;: &quot;mouse&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pointerMove&quot;, &quot;duration&quot;: 250, &quot;x&quot;: 0, &quot;y&quot;: 0, &quot;origin&quot;: {&quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;5523ebc4-6445-4cda-93f3-57c533ffa460&quot;}}, {&quot;type&quot;: &quot;pointerDown&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}, {&quot;type&quot;: &quot;pointerUp&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}]}, {&quot;type&quot;: &quot;key&quot;, &quot;id&quot;: &quot;key&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}]}]}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/actions HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/frame/parent {}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/frame/parent HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element {&quot;using&quot;: &quot;css selector&quot;, &quot;value&quot;: &quot;[id=\&quot;mainFrame\&quot;]&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element HTTP/1.1&quot; 404 1042
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element {&quot;using&quot;: &quot;css selector&quot;, &quot;value&quot;: &quot;[name=\&quot;mainFrame\&quot;]&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/frame {&quot;id&quot;: {&quot;ELEMENT&quot;: &quot;6f91df09-5820-44dd-b2f7-6cd6d44142d8&quot;, &quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;6f91df09-5820-44dd-b2f7-6cd6d44142d8&quot;}}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/frame HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/form/table/tbody/tr[1]/td/table/tbody/tr/td[2]/table/tbody/tr/td[4]/input&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/actions {&quot;actions&quot;: [{&quot;type&quot;: &quot;pointer&quot;, &quot;parameters&quot;: {&quot;pointerType&quot;: &quot;mouse&quot;}, &quot;id&quot;: &quot;mouse&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pointerMove&quot;, &quot;duration&quot;: 250, &quot;x&quot;: 0, &quot;y&quot;: 0, &quot;origin&quot;: {&quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;bd2bfe43-989d-4037-a881-a0e334d2913f&quot;}}, {&quot;type&quot;: &quot;pointerDown&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}, {&quot;type&quot;: &quot;pointerUp&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}]}, {&quot;type&quot;: &quot;key&quot;, &quot;id&quot;: &quot;key&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}]}]}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/actions HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request<br/> -------------------------------Captured log call-------------------------------- <br/>DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/form/table[1]/tbody/tr[2]/td[2]/input&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element/7f360039-c4fc-4b5e-9e1d-c17554f57b90/value {&quot;text&quot;: &quot;\u8282\u65e5&quot;, &quot;value&quot;: [&quot;\u8282&quot;, &quot;\u65e5&quot;], &quot;id&quot;: &quot;7f360039-c4fc-4b5e-9e1d-c17554f57b90&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element/7f360039-c4fc-4b5e-9e1d-c17554f57b90/value HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------关怀主题------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/execute/sync {&quot;script&quot;: &quot;window.document.getElementById(&#x27;careNexttime&#x27;).readOnly=false&quot;, &quot;args&quot;: []}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/execute/sync HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/execute/sync {&quot;script&quot;: &quot;window.document.getElementById(&#x27;careNexttime&#x27;).value=&#x27;2020-10-30 19:51:36.0&#x27;&quot;, &quot;args&quot;: []}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/execute/sync HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------下次关怀时间------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/form/table[2]/tbody/tr/td[2]/input&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/actions {&quot;actions&quot;: [{&quot;type&quot;: &quot;pointer&quot;, &quot;parameters&quot;: {&quot;pointerType&quot;: &quot;mouse&quot;}, &quot;id&quot;: &quot;mouse&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pointerMove&quot;, &quot;duration&quot;: 250, &quot;x&quot;: 0, &quot;y&quot;: 0, &quot;origin&quot;: {&quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;ae1ceec8-41f4-49dd-aab2-4d44ff5cfac9&quot;}}, {&quot;type&quot;: &quot;pointerDown&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}, {&quot;type&quot;: &quot;pointerUp&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}]}, {&quot;type&quot;: &quot;key&quot;, &quot;id&quot;: &quot;key&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}]}]}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/actions HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------添加------
+INFO     root:crm_log.py:30 ------获取弹出框------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 GET http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/alert/text {}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;GET /session/7eb387ae55bf47bb7635bd8fea70bf94/alert/text HTTP/1.1&quot; 200 24
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35719/session/7eb387ae55bf47bb7635bd8fea70bf94/alert/accept {}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35719 &quot;POST /session/7eb387ae55bf47bb7635bd8fea70bf94/alert/accept HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_crm_web_customer_care_search.py::Test_CustomerCareSearch::test_customer_care_search_success</td>
+          <td class="col-duration">0.62</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log setup------------------------------- <br/>DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session {&quot;capabilities&quot;: {&quot;firstMatch&quot;: [{}], &quot;alwaysMatch&quot;: {&quot;browserName&quot;: &quot;chrome&quot;, &quot;platformName&quot;: &quot;any&quot;, &quot;goog:chromeOptions&quot;: {&quot;extensions&quot;: [], &quot;args&quot;: []}}}, &quot;desiredCapabilities&quot;: {&quot;browserName&quot;: &quot;chrome&quot;, &quot;version&quot;: &quot;&quot;, &quot;platform&quot;: &quot;ANY&quot;, &quot;goog:chromeOptions&quot;: {&quot;extensions&quot;: [], &quot;args&quot;: []}}}
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): 127.0.0.1:35776
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session HTTP/1.1&quot; 200 715
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/window/rect {&quot;x&quot;: 200, &quot;y&quot;: 100, &quot;width&quot;: null, &quot;height&quot;: null}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/window/rect HTTP/1.1&quot; 200 53
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/window/rect {&quot;x&quot;: null, &quot;y&quot;: null, &quot;width&quot;: 1280, &quot;height&quot;: 720}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/window/rect HTTP/1.1&quot; 200 53
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/url {&quot;url&quot;: &quot;http://localhost:8080/crm&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/url HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/form/table/tbody/tr/td/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[1]/td[2]/div/input&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element/e683eaf4-bf36-4dce-8890-84e88d791494/value {&quot;text&quot;: &quot;admin&quot;, &quot;value&quot;: [&quot;a&quot;, &quot;d&quot;, &quot;m&quot;, &quot;i&quot;, &quot;n&quot;], &quot;id&quot;: &quot;e683eaf4-bf36-4dce-8890-84e88d791494&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element/e683eaf4-bf36-4dce-8890-84e88d791494/value HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------账号------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/form/table/tbody/tr/td/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[2]/td[2]/div/input&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element/09b590c0-d8e5-4bf7-8ef6-9413cd69cad3/value {&quot;text&quot;: &quot;123456&quot;, &quot;value&quot;: [&quot;1&quot;, &quot;2&quot;, &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;6&quot;], &quot;id&quot;: &quot;09b590c0-d8e5-4bf7-8ef6-9413cd69cad3&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element/09b590c0-d8e5-4bf7-8ef6-9413cd69cad3/value HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------密码------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;//*[@id=\&quot;in1\&quot;]&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/actions {&quot;actions&quot;: [{&quot;type&quot;: &quot;pointer&quot;, &quot;parameters&quot;: {&quot;pointerType&quot;: &quot;mouse&quot;}, &quot;id&quot;: &quot;mouse&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pointerMove&quot;, &quot;duration&quot;: 250, &quot;x&quot;: 0, &quot;y&quot;: 0, &quot;origin&quot;: {&quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;6723bf97-c16d-4bf0-8540-bdc41891c3c8&quot;}}, {&quot;type&quot;: &quot;pointerDown&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}, {&quot;type&quot;: &quot;pointerUp&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}]}, {&quot;type&quot;: &quot;key&quot;, &quot;id&quot;: &quot;key&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}]}]}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/actions HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------登录------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/frame/parent {}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/frame/parent HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/frameset/frameset/frame[1]&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/frame {&quot;id&quot;: {&quot;ELEMENT&quot;: &quot;df8af53e-b833-43d5-8ea4-43583c66420b&quot;, &quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;df8af53e-b833-43d5-8ea4-43583c66420b&quot;}}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/frame HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/table/tbody/tr[2]/td/table/tbody/tr[1]/td/table/tbody/tr[2]/td/div/table/tbody/tr[1]/td/table/tbody/tr[3]/td[2]/table/tbody/tr/td/span/a&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/actions {&quot;actions&quot;: [{&quot;type&quot;: &quot;pointer&quot;, &quot;parameters&quot;: {&quot;pointerType&quot;: &quot;mouse&quot;}, &quot;id&quot;: &quot;mouse&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pointerMove&quot;, &quot;duration&quot;: 250, &quot;x&quot;: 0, &quot;y&quot;: 0, &quot;origin&quot;: {&quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;0b2bd742-f5cd-4ca5-81a2-b6349ecc838d&quot;}}, {&quot;type&quot;: &quot;pointerDown&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}, {&quot;type&quot;: &quot;pointerUp&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}]}, {&quot;type&quot;: &quot;key&quot;, &quot;id&quot;: &quot;key&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}]}]}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/actions HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/frame/parent {}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/frame/parent HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;css selector&quot;, &quot;value&quot;: &quot;[id=\&quot;mainFrame\&quot;]&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 404 1042
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;css selector&quot;, &quot;value&quot;: &quot;[name=\&quot;mainFrame\&quot;]&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/frame {&quot;id&quot;: {&quot;ELEMENT&quot;: &quot;f988db56-ffd4-4789-866a-aa1a698dc559&quot;, &quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;f988db56-ffd4-4789-866a-aa1a698dc559&quot;}}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/frame HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request<br/> -------------------------------Captured log call-------------------------------- <br/>DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/form/table/tbody/tr[1]/td/table/tbody/tr/td[2]/table/tbody/tr/td[1]/input&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element/dc420f1c-ea17-4063-ba1f-e4c2b880d41c/value {&quot;text&quot;: &quot;\u8282\u65e5&quot;, &quot;value&quot;: [&quot;\u8282&quot;, &quot;\u65e5&quot;], &quot;id&quot;: &quot;dc420f1c-ea17-4063-ba1f-e4c2b880d41c&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element/dc420f1c-ea17-4063-ba1f-e4c2b880d41c/value HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------查询内容------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;css selector&quot;, &quot;value&quot;: &quot;[name=\&quot;queryType\&quot;]&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 GET http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element/9d6a038d-5cd0-4b8f-b25b-887cd2cfa4db/name {&quot;id&quot;: &quot;9d6a038d-5cd0-4b8f-b25b-887cd2cfa4db&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;GET /session/0c9fead89aa99331e8e6354c8167396f/element/9d6a038d-5cd0-4b8f-b25b-887cd2cfa4db/name HTTP/1.1&quot; 200 18
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/execute/sync {&quot;script&quot;: &quot;return (function(){return function(){var d=this;function f(a){return\&quot;string\&quot;==typeof a};function h(a,b){this.code=a;this.a=l[a]||m;this.message=b||\&quot;\&quot;;a=this.a.replace(/((?:^|\\s+)[a-z])/g,function(a){return a.toUpperCase().replace(/^[\\s\\xa0]+/g,\&quot;\&quot;)});b=a.length-5;if(0&gt;b||a.indexOf(\&quot;Error\&quot;,b)!=b)a+=\&quot;Error\&quot;;this.name=a;a=Error(this.message);a.name=this.name;this.stack=a.stack||\&quot;\&quot;}\n(function(){var a=Error;function b(){}b.prototype=a.prototype;h.b=a.prototype;h.prototype=new b;h.prototype.constructor=h;h.a=function(b,c,g){for(var e=Array(arguments.length-2),k=2;k&lt;arguments.length;k++)e[k-2]=arguments[k];return a.prototype[c].apply(b,e)}})();var m=\&quot;unknown error\&quot;,l={15:\&quot;element not selectable\&quot;,11:\&quot;element not visible\&quot;};l[31]=m;l[30]=m;l[24]=\&quot;invalid cookie domain\&quot;;l[29]=\&quot;invalid element coordinates\&quot;;l[12]=\&quot;invalid element state\&quot;;l[32]=\&quot;invalid selector\&quot;;l[51]=\&quot;invalid selector\&quot;;\nl[52]=\&quot;invalid selector\&quot;;l[17]=\&quot;javascript error\&quot;;l[405]=\&quot;unsupported operation\&quot;;l[34]=\&quot;move target out of bounds\&quot;;l[27]=\&quot;no such alert\&quot;;l[7]=\&quot;no such element\&quot;;l[8]=\&quot;no such frame\&quot;;l[23]=\&quot;no such window\&quot;;l[28]=\&quot;script timeout\&quot;;l[33]=\&quot;session not created\&quot;;l[10]=\&quot;stale element reference\&quot;;l[21]=\&quot;timeout\&quot;;l[25]=\&quot;unable to set cookie\&quot;;l[26]=\&quot;unexpected alert open\&quot;;l[13]=m;l[9]=\&quot;unknown command\&quot;;h.prototype.toString=function(){return this.name+\&quot;: \&quot;+this.message};var n;a:{var p=d.navigator;if(p){var q=p.userAgent;if(q){n=q;break a}}n=\&quot;\&quot;}function r(a){return-1!=n.indexOf(a)};function t(a,b){for(var e=a.length,c=f(a)?a.split(\&quot;\&quot;):a,g=0;g&lt;e;g++)g in c&amp;&amp;b.call(void 0,c[g],g,a)};function v(){return r(\&quot;iPhone\&quot;)&amp;&amp;!r(\&quot;iPod\&quot;)&amp;&amp;!r(\&quot;iPad\&quot;)};function w(){return(r(\&quot;Chrome\&quot;)||r(\&quot;CriOS\&quot;))&amp;&amp;!r(\&quot;Edge\&quot;)};var x=r(\&quot;Opera\&quot;),y=r(\&quot;Trident\&quot;)||r(\&quot;MSIE\&quot;),z=r(\&quot;Edge\&quot;),A=r(\&quot;Gecko\&quot;)&amp;&amp;!(-1!=n.toLowerCase().indexOf(\&quot;webkit\&quot;)&amp;&amp;!r(\&quot;Edge\&quot;))&amp;&amp;!(r(\&quot;Trident\&quot;)||r(\&quot;MSIE\&quot;))&amp;&amp;!r(\&quot;Edge\&quot;),aa=-1!=n.toLowerCase().indexOf(\&quot;webkit\&quot;)&amp;&amp;!r(\&quot;Edge\&quot;);function B(){var a=d.document;return a?a.documentMode:void 0}var C;\na:{var D=\&quot;\&quot;,E=function(){var a=n;if(A)return/rv\\:([^\\);]+)(\\)|;)/.exec(a);if(z)return/Edge\\/([\\d\\.]+)/.exec(a);if(y)return/\\b(?:MSIE|rv)[: ]([^\\);]+)(\\)|;)/.exec(a);if(aa)return/WebKit\\/(\\S+)/.exec(a);if(x)return/(?:Version)[ \\/]?(\\S+)/.exec(a)}();E&amp;&amp;(D=E?E[1]:\&quot;\&quot;);if(y){var F=B();if(null!=F&amp;&amp;F&gt;parseFloat(D)){C=String(F);break a}}C=D}var G;var H=d.document;G=H&amp;&amp;y?B()||(\&quot;CSS1Compat\&quot;==H.compatMode?parseInt(C,10):5):void 0;var ba=r(\&quot;Firefox\&quot;),ca=v()||r(\&quot;iPod\&quot;),da=r(\&quot;iPad\&quot;),I=r(\&quot;Android\&quot;)&amp;&amp;!(w()||r(\&quot;Firefox\&quot;)||r(\&quot;Opera\&quot;)||r(\&quot;Silk\&quot;)),ea=w(),J=r(\&quot;Safari\&quot;)&amp;&amp;!(w()||r(\&quot;Coast\&quot;)||r(\&quot;Opera\&quot;)||r(\&quot;Edge\&quot;)||r(\&quot;Silk\&quot;)||r(\&quot;Android\&quot;))&amp;&amp;!(v()||r(\&quot;iPad\&quot;)||r(\&quot;iPod\&quot;));function K(a){return(a=a.exec(n))?a[1]:\&quot;\&quot;}(function(){if(ba)return K(/Firefox\\/([0-9.]+)/);if(y||z||x)return C;if(ea)return v()||r(\&quot;iPad\&quot;)||r(\&quot;iPod\&quot;)?K(/CriOS\\/([0-9.]+)/):K(/Chrome\\/([0-9.]+)/);if(J&amp;&amp;!(v()||r(\&quot;iPad\&quot;)||r(\&quot;iPod\&quot;)))return K(/Version\\/([0-9.]+)/);if(ca||da){var a=/Version\\/(\\S+).*Mobile\\/(\\S+)/.exec(n);if(a)return a[1]+\&quot;.\&quot;+a[2]}else if(I)return(a=K(/Android\\s+([0-9.]+)/))?a:K(/Version\\/([0-9.]+)/);return\&quot;\&quot;})();var L,M=function(){if(!A)return!1;var a=d.Components;if(!a)return!1;try{if(!a.classes)return!1}catch(g){return!1}var b=a.classes,a=a.interfaces,e=b[\&quot;@mozilla.org/xpcom/version-comparator;1\&quot;].getService(a.nsIVersionComparator),c=b[\&quot;@mozilla.org/xre/app-info;1\&quot;].getService(a.nsIXULAppInfo).version;L=function(a){e.compare(c,\&quot;\&quot;+a)};return!0}(),N=y&amp;&amp;!(8&lt;=Number(G)),fa=y&amp;&amp;!(9&lt;=Number(G));I&amp;&amp;M&amp;&amp;L(2.3);I&amp;&amp;M&amp;&amp;L(4);J&amp;&amp;M&amp;&amp;L(6);var ga={SCRIPT:1,STYLE:1,HEAD:1,IFRAME:1,OBJECT:1},O={IMG:\&quot; \&quot;,BR:\&quot;\\n\&quot;};function P(a,b,e){if(!(a.nodeName in ga))if(3==a.nodeType)e?b.push(String(a.nodeValue).replace(/(\\r\\n|\\r|\\n)/g,\&quot;\&quot;)):b.push(a.nodeValue);else if(a.nodeName in O)b.push(O[a.nodeName]);else for(a=a.firstChild;a;)P(a,b,e),a=a.nextSibling};function Q(a,b){b=b.toLowerCase();return\&quot;style\&quot;==b?ha(a.style.cssText):N&amp;&amp;\&quot;value\&quot;==b&amp;&amp;R(a,\&quot;INPUT\&quot;)?a.value:fa&amp;&amp;!0===a[b]?String(a.getAttribute(b)):(a=a.getAttributeNode(b))&amp;&amp;a.specified?a.value:null}var ia=/[;]+(?=(?:(?:[^\&quot;]*\&quot;){2})*[^\&quot;]*$)(?=(?:(?:[^&#x27;]*&#x27;){2})*[^&#x27;]*$)(?=(?:[^()]*\\([^()]*\\))*[^()]*$)/;\nfunction ha(a){var b=[];t(a.split(ia),function(a){var c=a.indexOf(\&quot;:\&quot;);0&lt;c&amp;&amp;(a=[a.slice(0,c),a.slice(c+1)],2==a.length&amp;&amp;b.push(a[0].toLowerCase(),\&quot;:\&quot;,a[1],\&quot;;\&quot;))});b=b.join(\&quot;\&quot;);return b=\&quot;;\&quot;==b.charAt(b.length-1)?b:b+\&quot;;\&quot;}function S(a,b){N&amp;&amp;\&quot;value\&quot;==b&amp;&amp;R(a,\&quot;OPTION\&quot;)&amp;&amp;null===Q(a,\&quot;value\&quot;)?(b=[],P(a,b,!1),a=b.join(\&quot;\&quot;)):a=a[b];return a}function R(a,b){b&amp;&amp;\&quot;string\&quot;!==typeof b&amp;&amp;(b=b.toString());return!!a&amp;&amp;1==a.nodeType&amp;&amp;(!b||a.tagName.toUpperCase()==b)}\nfunction T(a){return R(a,\&quot;OPTION\&quot;)?!0:R(a,\&quot;INPUT\&quot;)?(a=a.type.toLowerCase(),\&quot;checkbox\&quot;==a||\&quot;radio\&quot;==a):!1};var ja={\&quot;class\&quot;:\&quot;className\&quot;,readonly:\&quot;readOnly\&quot;},U=\&quot;allowfullscreen allowpaymentrequest allowusermedia async autofocus autoplay checked compact complete controls declare default defaultchecked defaultselected defer disabled ended formnovalidate hidden indeterminate iscontenteditable ismap itemscope loop multiple muted nohref nomodule noresize noshade novalidate nowrap open paused playsinline pubdate readonly required reversed scoped seamless seeking selected truespeed typemustmatch willvalidate\&quot;.split(\&quot; \&quot;);function V(a,b){var e=null,c=b.toLowerCase();if(\&quot;style\&quot;==c)return(e=a.style)&amp;&amp;!f(e)&amp;&amp;(e=e.cssText),e;if((\&quot;selected\&quot;==c||\&quot;checked\&quot;==c)&amp;&amp;T(a)){if(!T(a))throw new h(15,\&quot;Element is not selectable\&quot;);b=\&quot;selected\&quot;;e=a.type&amp;&amp;a.type.toLowerCase();if(\&quot;checkbox\&quot;==e||\&quot;radio\&quot;==e)b=\&quot;checked\&quot;;return S(a,b)?\&quot;true\&quot;:null}var g=R(a,\&quot;A\&quot;);if(R(a,\&quot;IMG\&quot;)&amp;&amp;\&quot;src\&quot;==c||g&amp;&amp;\&quot;href\&quot;==c)return(e=Q(a,c))&amp;&amp;(e=S(a,c)),e;if(\&quot;spellcheck\&quot;==c){e=Q(a,c);if(null!==e){if(\&quot;false\&quot;==e.toLowerCase())return\&quot;false\&quot;;if(\&quot;true\&quot;==e.toLowerCase())return\&quot;true\&quot;}return S(a,\nc)+\&quot;\&quot;}g=ja[b]||b;a:if(f(U))c=f(c)&amp;&amp;1==c.length?U.indexOf(c,0):-1;else{for(var u=0;u&lt;U.length;u++)if(u in U&amp;&amp;U[u]===c){c=u;break a}c=-1}if(0&lt;=c)return(e=null!==Q(a,b)||S(a,g))?\&quot;true\&quot;:null;try{var k=S(a,g)}catch(ka){}(c=null==k)||(c=typeof k,c=\&quot;object\&quot;==c&amp;&amp;null!=k||\&quot;function\&quot;==c);c?e=Q(a,b):e=k;return null!=e?e.toString():null}var W=[\&quot;_\&quot;],X=d;W[0]in X||!X.execScript||X.execScript(\&quot;var \&quot;+W[0]);\nfor(var Y;W.length&amp;&amp;(Y=W.shift());){var Z;if(Z=!W.length)Z=void 0!==V;Z?X[Y]=V:X[Y]&amp;&amp;X[Y]!==Object.prototype[Y]?X=X[Y]:X=X[Y]={}};; return this._.apply(null,arguments);}.apply({navigator:typeof window!=&#x27;undefined&#x27;?window.navigator:null,document:typeof window!=&#x27;undefined&#x27;?window.document:null}, arguments);}\n).apply(null, arguments);&quot;, &quot;args&quot;: [{&quot;ELEMENT&quot;: &quot;9d6a038d-5cd0-4b8f-b25b-887cd2cfa4db&quot;, &quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;9d6a038d-5cd0-4b8f-b25b-887cd2cfa4db&quot;}, &quot;multiple&quot;]}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/execute/sync HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element/9d6a038d-5cd0-4b8f-b25b-887cd2cfa4db/elements {&quot;using&quot;: &quot;css selector&quot;, &quot;value&quot;: &quot;option&quot;, &quot;id&quot;: &quot;9d6a038d-5cd0-4b8f-b25b-887cd2cfa4db&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element/9d6a038d-5cd0-4b8f-b25b-887cd2cfa4db/elements HTTP/1.1&quot; 200 248
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/execute/sync {&quot;script&quot;: &quot;return (function(){return function(){var d=this;function f(a){return\&quot;string\&quot;==typeof a};function h(a,b){this.code=a;this.a=l[a]||m;this.message=b||\&quot;\&quot;;a=this.a.replace(/((?:^|\\s+)[a-z])/g,function(a){return a.toUpperCase().replace(/^[\\s\\xa0]+/g,\&quot;\&quot;)});b=a.length-5;if(0&gt;b||a.indexOf(\&quot;Error\&quot;,b)!=b)a+=\&quot;Error\&quot;;this.name=a;a=Error(this.message);a.name=this.name;this.stack=a.stack||\&quot;\&quot;}\n(function(){var a=Error;function b(){}b.prototype=a.prototype;h.b=a.prototype;h.prototype=new b;h.prototype.constructor=h;h.a=function(b,c,g){for(var e=Array(arguments.length-2),k=2;k&lt;arguments.length;k++)e[k-2]=arguments[k];return a.prototype[c].apply(b,e)}})();var m=\&quot;unknown error\&quot;,l={15:\&quot;element not selectable\&quot;,11:\&quot;element not visible\&quot;};l[31]=m;l[30]=m;l[24]=\&quot;invalid cookie domain\&quot;;l[29]=\&quot;invalid element coordinates\&quot;;l[12]=\&quot;invalid element state\&quot;;l[32]=\&quot;invalid selector\&quot;;l[51]=\&quot;invalid selector\&quot;;\nl[52]=\&quot;invalid selector\&quot;;l[17]=\&quot;javascript error\&quot;;l[405]=\&quot;unsupported operation\&quot;;l[34]=\&quot;move target out of bounds\&quot;;l[27]=\&quot;no such alert\&quot;;l[7]=\&quot;no such element\&quot;;l[8]=\&quot;no such frame\&quot;;l[23]=\&quot;no such window\&quot;;l[28]=\&quot;script timeout\&quot;;l[33]=\&quot;session not created\&quot;;l[10]=\&quot;stale element reference\&quot;;l[21]=\&quot;timeout\&quot;;l[25]=\&quot;unable to set cookie\&quot;;l[26]=\&quot;unexpected alert open\&quot;;l[13]=m;l[9]=\&quot;unknown command\&quot;;h.prototype.toString=function(){return this.name+\&quot;: \&quot;+this.message};var n;a:{var p=d.navigator;if(p){var q=p.userAgent;if(q){n=q;break a}}n=\&quot;\&quot;}function r(a){return-1!=n.indexOf(a)};function t(a,b){for(var e=a.length,c=f(a)?a.split(\&quot;\&quot;):a,g=0;g&lt;e;g++)g in c&amp;&amp;b.call(void 0,c[g],g,a)};function v(){return r(\&quot;iPhone\&quot;)&amp;&amp;!r(\&quot;iPod\&quot;)&amp;&amp;!r(\&quot;iPad\&quot;)};function w(){return(r(\&quot;Chrome\&quot;)||r(\&quot;CriOS\&quot;))&amp;&amp;!r(\&quot;Edge\&quot;)};var x=r(\&quot;Opera\&quot;),y=r(\&quot;Trident\&quot;)||r(\&quot;MSIE\&quot;),z=r(\&quot;Edge\&quot;),A=r(\&quot;Gecko\&quot;)&amp;&amp;!(-1!=n.toLowerCase().indexOf(\&quot;webkit\&quot;)&amp;&amp;!r(\&quot;Edge\&quot;))&amp;&amp;!(r(\&quot;Trident\&quot;)||r(\&quot;MSIE\&quot;))&amp;&amp;!r(\&quot;Edge\&quot;),aa=-1!=n.toLowerCase().indexOf(\&quot;webkit\&quot;)&amp;&amp;!r(\&quot;Edge\&quot;);function B(){var a=d.document;return a?a.documentMode:void 0}var C;\na:{var D=\&quot;\&quot;,E=function(){var a=n;if(A)return/rv\\:([^\\);]+)(\\)|;)/.exec(a);if(z)return/Edge\\/([\\d\\.]+)/.exec(a);if(y)return/\\b(?:MSIE|rv)[: ]([^\\);]+)(\\)|;)/.exec(a);if(aa)return/WebKit\\/(\\S+)/.exec(a);if(x)return/(?:Version)[ \\/]?(\\S+)/.exec(a)}();E&amp;&amp;(D=E?E[1]:\&quot;\&quot;);if(y){var F=B();if(null!=F&amp;&amp;F&gt;parseFloat(D)){C=String(F);break a}}C=D}var G;var H=d.document;G=H&amp;&amp;y?B()||(\&quot;CSS1Compat\&quot;==H.compatMode?parseInt(C,10):5):void 0;var ba=r(\&quot;Firefox\&quot;),ca=v()||r(\&quot;iPod\&quot;),da=r(\&quot;iPad\&quot;),I=r(\&quot;Android\&quot;)&amp;&amp;!(w()||r(\&quot;Firefox\&quot;)||r(\&quot;Opera\&quot;)||r(\&quot;Silk\&quot;)),ea=w(),J=r(\&quot;Safari\&quot;)&amp;&amp;!(w()||r(\&quot;Coast\&quot;)||r(\&quot;Opera\&quot;)||r(\&quot;Edge\&quot;)||r(\&quot;Silk\&quot;)||r(\&quot;Android\&quot;))&amp;&amp;!(v()||r(\&quot;iPad\&quot;)||r(\&quot;iPod\&quot;));function K(a){return(a=a.exec(n))?a[1]:\&quot;\&quot;}(function(){if(ba)return K(/Firefox\\/([0-9.]+)/);if(y||z||x)return C;if(ea)return v()||r(\&quot;iPad\&quot;)||r(\&quot;iPod\&quot;)?K(/CriOS\\/([0-9.]+)/):K(/Chrome\\/([0-9.]+)/);if(J&amp;&amp;!(v()||r(\&quot;iPad\&quot;)||r(\&quot;iPod\&quot;)))return K(/Version\\/([0-9.]+)/);if(ca||da){var a=/Version\\/(\\S+).*Mobile\\/(\\S+)/.exec(n);if(a)return a[1]+\&quot;.\&quot;+a[2]}else if(I)return(a=K(/Android\\s+([0-9.]+)/))?a:K(/Version\\/([0-9.]+)/);return\&quot;\&quot;})();var L,M=function(){if(!A)return!1;var a=d.Components;if(!a)return!1;try{if(!a.classes)return!1}catch(g){return!1}var b=a.classes,a=a.interfaces,e=b[\&quot;@mozilla.org/xpcom/version-comparator;1\&quot;].getService(a.nsIVersionComparator),c=b[\&quot;@mozilla.org/xre/app-info;1\&quot;].getService(a.nsIXULAppInfo).version;L=function(a){e.compare(c,\&quot;\&quot;+a)};return!0}(),N=y&amp;&amp;!(8&lt;=Number(G)),fa=y&amp;&amp;!(9&lt;=Number(G));I&amp;&amp;M&amp;&amp;L(2.3);I&amp;&amp;M&amp;&amp;L(4);J&amp;&amp;M&amp;&amp;L(6);var ga={SCRIPT:1,STYLE:1,HEAD:1,IFRAME:1,OBJECT:1},O={IMG:\&quot; \&quot;,BR:\&quot;\\n\&quot;};function P(a,b,e){if(!(a.nodeName in ga))if(3==a.nodeType)e?b.push(String(a.nodeValue).replace(/(\\r\\n|\\r|\\n)/g,\&quot;\&quot;)):b.push(a.nodeValue);else if(a.nodeName in O)b.push(O[a.nodeName]);else for(a=a.firstChild;a;)P(a,b,e),a=a.nextSibling};function Q(a,b){b=b.toLowerCase();return\&quot;style\&quot;==b?ha(a.style.cssText):N&amp;&amp;\&quot;value\&quot;==b&amp;&amp;R(a,\&quot;INPUT\&quot;)?a.value:fa&amp;&amp;!0===a[b]?String(a.getAttribute(b)):(a=a.getAttributeNode(b))&amp;&amp;a.specified?a.value:null}var ia=/[;]+(?=(?:(?:[^\&quot;]*\&quot;){2})*[^\&quot;]*$)(?=(?:(?:[^&#x27;]*&#x27;){2})*[^&#x27;]*$)(?=(?:[^()]*\\([^()]*\\))*[^()]*$)/;\nfunction ha(a){var b=[];t(a.split(ia),function(a){var c=a.indexOf(\&quot;:\&quot;);0&lt;c&amp;&amp;(a=[a.slice(0,c),a.slice(c+1)],2==a.length&amp;&amp;b.push(a[0].toLowerCase(),\&quot;:\&quot;,a[1],\&quot;;\&quot;))});b=b.join(\&quot;\&quot;);return b=\&quot;;\&quot;==b.charAt(b.length-1)?b:b+\&quot;;\&quot;}function S(a,b){N&amp;&amp;\&quot;value\&quot;==b&amp;&amp;R(a,\&quot;OPTION\&quot;)&amp;&amp;null===Q(a,\&quot;value\&quot;)?(b=[],P(a,b,!1),a=b.join(\&quot;\&quot;)):a=a[b];return a}function R(a,b){b&amp;&amp;\&quot;string\&quot;!==typeof b&amp;&amp;(b=b.toString());return!!a&amp;&amp;1==a.nodeType&amp;&amp;(!b||a.tagName.toUpperCase()==b)}\nfunction T(a){return R(a,\&quot;OPTION\&quot;)?!0:R(a,\&quot;INPUT\&quot;)?(a=a.type.toLowerCase(),\&quot;checkbox\&quot;==a||\&quot;radio\&quot;==a):!1};var ja={\&quot;class\&quot;:\&quot;className\&quot;,readonly:\&quot;readOnly\&quot;},U=\&quot;allowfullscreen allowpaymentrequest allowusermedia async autofocus autoplay checked compact complete controls declare default defaultchecked defaultselected defer disabled ended formnovalidate hidden indeterminate iscontenteditable ismap itemscope loop multiple muted nohref nomodule noresize noshade novalidate nowrap open paused playsinline pubdate readonly required reversed scoped seamless seeking selected truespeed typemustmatch willvalidate\&quot;.split(\&quot; \&quot;);function V(a,b){var e=null,c=b.toLowerCase();if(\&quot;style\&quot;==c)return(e=a.style)&amp;&amp;!f(e)&amp;&amp;(e=e.cssText),e;if((\&quot;selected\&quot;==c||\&quot;checked\&quot;==c)&amp;&amp;T(a)){if(!T(a))throw new h(15,\&quot;Element is not selectable\&quot;);b=\&quot;selected\&quot;;e=a.type&amp;&amp;a.type.toLowerCase();if(\&quot;checkbox\&quot;==e||\&quot;radio\&quot;==e)b=\&quot;checked\&quot;;return S(a,b)?\&quot;true\&quot;:null}var g=R(a,\&quot;A\&quot;);if(R(a,\&quot;IMG\&quot;)&amp;&amp;\&quot;src\&quot;==c||g&amp;&amp;\&quot;href\&quot;==c)return(e=Q(a,c))&amp;&amp;(e=S(a,c)),e;if(\&quot;spellcheck\&quot;==c){e=Q(a,c);if(null!==e){if(\&quot;false\&quot;==e.toLowerCase())return\&quot;false\&quot;;if(\&quot;true\&quot;==e.toLowerCase())return\&quot;true\&quot;}return S(a,\nc)+\&quot;\&quot;}g=ja[b]||b;a:if(f(U))c=f(c)&amp;&amp;1==c.length?U.indexOf(c,0):-1;else{for(var u=0;u&lt;U.length;u++)if(u in U&amp;&amp;U[u]===c){c=u;break a}c=-1}if(0&lt;=c)return(e=null!==Q(a,b)||S(a,g))?\&quot;true\&quot;:null;try{var k=S(a,g)}catch(ka){}(c=null==k)||(c=typeof k,c=\&quot;object\&quot;==c&amp;&amp;null!=k||\&quot;function\&quot;==c);c?e=Q(a,b):e=k;return null!=e?e.toString():null}var W=[\&quot;_\&quot;],X=d;W[0]in X||!X.execScript||X.execScript(\&quot;var \&quot;+W[0]);\nfor(var Y;W.length&amp;&amp;(Y=W.shift());){var Z;if(Z=!W.length)Z=void 0!==V;Z?X[Y]=V:X[Y]&amp;&amp;X[Y]!==Object.prototype[Y]?X=X[Y]:X=X[Y]={}};; return this._.apply(null,arguments);}.apply({navigator:typeof window!=&#x27;undefined&#x27;?window.navigator:null,document:typeof window!=&#x27;undefined&#x27;?window.document:null}, arguments);}\n).apply(null, arguments);&quot;, &quot;args&quot;: [{&quot;ELEMENT&quot;: &quot;a3a08333-e045-4c69-9d19-07cb0287fdfa&quot;, &quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;a3a08333-e045-4c69-9d19-07cb0287fdfa&quot;}, &quot;index&quot;]}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/execute/sync HTTP/1.1&quot; 200 13
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/execute/sync {&quot;script&quot;: &quot;return (function(){return function(){var d=this;function f(a){return\&quot;string\&quot;==typeof a};function h(a,b){this.code=a;this.a=l[a]||m;this.message=b||\&quot;\&quot;;a=this.a.replace(/((?:^|\\s+)[a-z])/g,function(a){return a.toUpperCase().replace(/^[\\s\\xa0]+/g,\&quot;\&quot;)});b=a.length-5;if(0&gt;b||a.indexOf(\&quot;Error\&quot;,b)!=b)a+=\&quot;Error\&quot;;this.name=a;a=Error(this.message);a.name=this.name;this.stack=a.stack||\&quot;\&quot;}\n(function(){var a=Error;function b(){}b.prototype=a.prototype;h.b=a.prototype;h.prototype=new b;h.prototype.constructor=h;h.a=function(b,c,g){for(var e=Array(arguments.length-2),k=2;k&lt;arguments.length;k++)e[k-2]=arguments[k];return a.prototype[c].apply(b,e)}})();var m=\&quot;unknown error\&quot;,l={15:\&quot;element not selectable\&quot;,11:\&quot;element not visible\&quot;};l[31]=m;l[30]=m;l[24]=\&quot;invalid cookie domain\&quot;;l[29]=\&quot;invalid element coordinates\&quot;;l[12]=\&quot;invalid element state\&quot;;l[32]=\&quot;invalid selector\&quot;;l[51]=\&quot;invalid selector\&quot;;\nl[52]=\&quot;invalid selector\&quot;;l[17]=\&quot;javascript error\&quot;;l[405]=\&quot;unsupported operation\&quot;;l[34]=\&quot;move target out of bounds\&quot;;l[27]=\&quot;no such alert\&quot;;l[7]=\&quot;no such element\&quot;;l[8]=\&quot;no such frame\&quot;;l[23]=\&quot;no such window\&quot;;l[28]=\&quot;script timeout\&quot;;l[33]=\&quot;session not created\&quot;;l[10]=\&quot;stale element reference\&quot;;l[21]=\&quot;timeout\&quot;;l[25]=\&quot;unable to set cookie\&quot;;l[26]=\&quot;unexpected alert open\&quot;;l[13]=m;l[9]=\&quot;unknown command\&quot;;h.prototype.toString=function(){return this.name+\&quot;: \&quot;+this.message};var n;a:{var p=d.navigator;if(p){var q=p.userAgent;if(q){n=q;break a}}n=\&quot;\&quot;}function r(a){return-1!=n.indexOf(a)};function t(a,b){for(var e=a.length,c=f(a)?a.split(\&quot;\&quot;):a,g=0;g&lt;e;g++)g in c&amp;&amp;b.call(void 0,c[g],g,a)};function v(){return r(\&quot;iPhone\&quot;)&amp;&amp;!r(\&quot;iPod\&quot;)&amp;&amp;!r(\&quot;iPad\&quot;)};function w(){return(r(\&quot;Chrome\&quot;)||r(\&quot;CriOS\&quot;))&amp;&amp;!r(\&quot;Edge\&quot;)};var x=r(\&quot;Opera\&quot;),y=r(\&quot;Trident\&quot;)||r(\&quot;MSIE\&quot;),z=r(\&quot;Edge\&quot;),A=r(\&quot;Gecko\&quot;)&amp;&amp;!(-1!=n.toLowerCase().indexOf(\&quot;webkit\&quot;)&amp;&amp;!r(\&quot;Edge\&quot;))&amp;&amp;!(r(\&quot;Trident\&quot;)||r(\&quot;MSIE\&quot;))&amp;&amp;!r(\&quot;Edge\&quot;),aa=-1!=n.toLowerCase().indexOf(\&quot;webkit\&quot;)&amp;&amp;!r(\&quot;Edge\&quot;);function B(){var a=d.document;return a?a.documentMode:void 0}var C;\na:{var D=\&quot;\&quot;,E=function(){var a=n;if(A)return/rv\\:([^\\);]+)(\\)|;)/.exec(a);if(z)return/Edge\\/([\\d\\.]+)/.exec(a);if(y)return/\\b(?:MSIE|rv)[: ]([^\\);]+)(\\)|;)/.exec(a);if(aa)return/WebKit\\/(\\S+)/.exec(a);if(x)return/(?:Version)[ \\/]?(\\S+)/.exec(a)}();E&amp;&amp;(D=E?E[1]:\&quot;\&quot;);if(y){var F=B();if(null!=F&amp;&amp;F&gt;parseFloat(D)){C=String(F);break a}}C=D}var G;var H=d.document;G=H&amp;&amp;y?B()||(\&quot;CSS1Compat\&quot;==H.compatMode?parseInt(C,10):5):void 0;var ba=r(\&quot;Firefox\&quot;),ca=v()||r(\&quot;iPod\&quot;),da=r(\&quot;iPad\&quot;),I=r(\&quot;Android\&quot;)&amp;&amp;!(w()||r(\&quot;Firefox\&quot;)||r(\&quot;Opera\&quot;)||r(\&quot;Silk\&quot;)),ea=w(),J=r(\&quot;Safari\&quot;)&amp;&amp;!(w()||r(\&quot;Coast\&quot;)||r(\&quot;Opera\&quot;)||r(\&quot;Edge\&quot;)||r(\&quot;Silk\&quot;)||r(\&quot;Android\&quot;))&amp;&amp;!(v()||r(\&quot;iPad\&quot;)||r(\&quot;iPod\&quot;));function K(a){return(a=a.exec(n))?a[1]:\&quot;\&quot;}(function(){if(ba)return K(/Firefox\\/([0-9.]+)/);if(y||z||x)return C;if(ea)return v()||r(\&quot;iPad\&quot;)||r(\&quot;iPod\&quot;)?K(/CriOS\\/([0-9.]+)/):K(/Chrome\\/([0-9.]+)/);if(J&amp;&amp;!(v()||r(\&quot;iPad\&quot;)||r(\&quot;iPod\&quot;)))return K(/Version\\/([0-9.]+)/);if(ca||da){var a=/Version\\/(\\S+).*Mobile\\/(\\S+)/.exec(n);if(a)return a[1]+\&quot;.\&quot;+a[2]}else if(I)return(a=K(/Android\\s+([0-9.]+)/))?a:K(/Version\\/([0-9.]+)/);return\&quot;\&quot;})();var L,M=function(){if(!A)return!1;var a=d.Components;if(!a)return!1;try{if(!a.classes)return!1}catch(g){return!1}var b=a.classes,a=a.interfaces,e=b[\&quot;@mozilla.org/xpcom/version-comparator;1\&quot;].getService(a.nsIVersionComparator),c=b[\&quot;@mozilla.org/xre/app-info;1\&quot;].getService(a.nsIXULAppInfo).version;L=function(a){e.compare(c,\&quot;\&quot;+a)};return!0}(),N=y&amp;&amp;!(8&lt;=Number(G)),fa=y&amp;&amp;!(9&lt;=Number(G));I&amp;&amp;M&amp;&amp;L(2.3);I&amp;&amp;M&amp;&amp;L(4);J&amp;&amp;M&amp;&amp;L(6);var ga={SCRIPT:1,STYLE:1,HEAD:1,IFRAME:1,OBJECT:1},O={IMG:\&quot; \&quot;,BR:\&quot;\\n\&quot;};function P(a,b,e){if(!(a.nodeName in ga))if(3==a.nodeType)e?b.push(String(a.nodeValue).replace(/(\\r\\n|\\r|\\n)/g,\&quot;\&quot;)):b.push(a.nodeValue);else if(a.nodeName in O)b.push(O[a.nodeName]);else for(a=a.firstChild;a;)P(a,b,e),a=a.nextSibling};function Q(a,b){b=b.toLowerCase();return\&quot;style\&quot;==b?ha(a.style.cssText):N&amp;&amp;\&quot;value\&quot;==b&amp;&amp;R(a,\&quot;INPUT\&quot;)?a.value:fa&amp;&amp;!0===a[b]?String(a.getAttribute(b)):(a=a.getAttributeNode(b))&amp;&amp;a.specified?a.value:null}var ia=/[;]+(?=(?:(?:[^\&quot;]*\&quot;){2})*[^\&quot;]*$)(?=(?:(?:[^&#x27;]*&#x27;){2})*[^&#x27;]*$)(?=(?:[^()]*\\([^()]*\\))*[^()]*$)/;\nfunction ha(a){var b=[];t(a.split(ia),function(a){var c=a.indexOf(\&quot;:\&quot;);0&lt;c&amp;&amp;(a=[a.slice(0,c),a.slice(c+1)],2==a.length&amp;&amp;b.push(a[0].toLowerCase(),\&quot;:\&quot;,a[1],\&quot;;\&quot;))});b=b.join(\&quot;\&quot;);return b=\&quot;;\&quot;==b.charAt(b.length-1)?b:b+\&quot;;\&quot;}function S(a,b){N&amp;&amp;\&quot;value\&quot;==b&amp;&amp;R(a,\&quot;OPTION\&quot;)&amp;&amp;null===Q(a,\&quot;value\&quot;)?(b=[],P(a,b,!1),a=b.join(\&quot;\&quot;)):a=a[b];return a}function R(a,b){b&amp;&amp;\&quot;string\&quot;!==typeof b&amp;&amp;(b=b.toString());return!!a&amp;&amp;1==a.nodeType&amp;&amp;(!b||a.tagName.toUpperCase()==b)}\nfunction T(a){return R(a,\&quot;OPTION\&quot;)?!0:R(a,\&quot;INPUT\&quot;)?(a=a.type.toLowerCase(),\&quot;checkbox\&quot;==a||\&quot;radio\&quot;==a):!1};var ja={\&quot;class\&quot;:\&quot;className\&quot;,readonly:\&quot;readOnly\&quot;},U=\&quot;allowfullscreen allowpaymentrequest allowusermedia async autofocus autoplay checked compact complete controls declare default defaultchecked defaultselected defer disabled ended formnovalidate hidden indeterminate iscontenteditable ismap itemscope loop multiple muted nohref nomodule noresize noshade novalidate nowrap open paused playsinline pubdate readonly required reversed scoped seamless seeking selected truespeed typemustmatch willvalidate\&quot;.split(\&quot; \&quot;);function V(a,b){var e=null,c=b.toLowerCase();if(\&quot;style\&quot;==c)return(e=a.style)&amp;&amp;!f(e)&amp;&amp;(e=e.cssText),e;if((\&quot;selected\&quot;==c||\&quot;checked\&quot;==c)&amp;&amp;T(a)){if(!T(a))throw new h(15,\&quot;Element is not selectable\&quot;);b=\&quot;selected\&quot;;e=a.type&amp;&amp;a.type.toLowerCase();if(\&quot;checkbox\&quot;==e||\&quot;radio\&quot;==e)b=\&quot;checked\&quot;;return S(a,b)?\&quot;true\&quot;:null}var g=R(a,\&quot;A\&quot;);if(R(a,\&quot;IMG\&quot;)&amp;&amp;\&quot;src\&quot;==c||g&amp;&amp;\&quot;href\&quot;==c)return(e=Q(a,c))&amp;&amp;(e=S(a,c)),e;if(\&quot;spellcheck\&quot;==c){e=Q(a,c);if(null!==e){if(\&quot;false\&quot;==e.toLowerCase())return\&quot;false\&quot;;if(\&quot;true\&quot;==e.toLowerCase())return\&quot;true\&quot;}return S(a,\nc)+\&quot;\&quot;}g=ja[b]||b;a:if(f(U))c=f(c)&amp;&amp;1==c.length?U.indexOf(c,0):-1;else{for(var u=0;u&lt;U.length;u++)if(u in U&amp;&amp;U[u]===c){c=u;break a}c=-1}if(0&lt;=c)return(e=null!==Q(a,b)||S(a,g))?\&quot;true\&quot;:null;try{var k=S(a,g)}catch(ka){}(c=null==k)||(c=typeof k,c=\&quot;object\&quot;==c&amp;&amp;null!=k||\&quot;function\&quot;==c);c?e=Q(a,b):e=k;return null!=e?e.toString():null}var W=[\&quot;_\&quot;],X=d;W[0]in X||!X.execScript||X.execScript(\&quot;var \&quot;+W[0]);\nfor(var Y;W.length&amp;&amp;(Y=W.shift());){var Z;if(Z=!W.length)Z=void 0!==V;Z?X[Y]=V:X[Y]&amp;&amp;X[Y]!==Object.prototype[Y]?X=X[Y]:X=X[Y]={}};; return this._.apply(null,arguments);}.apply({navigator:typeof window!=&#x27;undefined&#x27;?window.navigator:null,document:typeof window!=&#x27;undefined&#x27;?window.document:null}, arguments);}\n).apply(null, arguments);&quot;, &quot;args&quot;: [{&quot;ELEMENT&quot;: &quot;beda2ea2-ffe9-4196-a1e3-72b496e8cd9b&quot;, &quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;beda2ea2-ffe9-4196-a1e3-72b496e8cd9b&quot;}, &quot;index&quot;]}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/execute/sync HTTP/1.1&quot; 200 13
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 GET http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element/beda2ea2-ffe9-4196-a1e3-72b496e8cd9b/selected {&quot;id&quot;: &quot;beda2ea2-ffe9-4196-a1e3-72b496e8cd9b&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;GET /session/0c9fead89aa99331e8e6354c8167396f/element/beda2ea2-ffe9-4196-a1e3-72b496e8cd9b/selected HTTP/1.1&quot; 200 15
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element/beda2ea2-ffe9-4196-a1e3-72b496e8cd9b/click {&quot;id&quot;: &quot;beda2ea2-ffe9-4196-a1e3-72b496e8cd9b&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element/beda2ea2-ffe9-4196-a1e3-72b496e8cd9b/click HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------查询方式------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/form/table/tbody/tr[1]/td/table/tbody/tr/td[2]/table/tbody/tr/td[3]/input&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/actions {&quot;actions&quot;: [{&quot;type&quot;: &quot;pointer&quot;, &quot;parameters&quot;: {&quot;pointerType&quot;: &quot;mouse&quot;}, &quot;id&quot;: &quot;mouse&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pointerMove&quot;, &quot;duration&quot;: 250, &quot;x&quot;: 0, &quot;y&quot;: 0, &quot;origin&quot;: {&quot;element-6066-11e4-a52e-4f735466cecf&quot;: &quot;e697e133-206f-4739-8f73-e1d9f1837e3d&quot;}}, {&quot;type&quot;: &quot;pointerDown&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}, {&quot;type&quot;: &quot;pointerUp&quot;, &quot;duration&quot;: 0, &quot;button&quot;: 0}]}, {&quot;type&quot;: &quot;key&quot;, &quot;id&quot;: &quot;key&quot;, &quot;actions&quot;: [{&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}, {&quot;type&quot;: &quot;pause&quot;, &quot;duration&quot;: 0}]}]}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/actions HTTP/1.1&quot; 200 14
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------查询------
+INFO     root:crm_log.py:30 ------获取查询信息------
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/form/table/tbody/tr[3]/td/table/tbody/tr/td[2]/table/tbody/tr/td[1]&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 GET http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element/f64ed69e-9c11-4ae2-a69f-1bbeaab4110f/text {&quot;id&quot;: &quot;f64ed69e-9c11-4ae2-a69f-1bbeaab4110f&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;GET /session/0c9fead89aa99331e8e6354c8167396f/element/f64ed69e-9c11-4ae2-a69f-1bbeaab4110f/text HTTP/1.1&quot; 200 52
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 POST http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element {&quot;using&quot;: &quot;xpath&quot;, &quot;value&quot;: &quot;/html/body/form/table/tbody/tr[2]/td/table/tbody/tr/td[2]/table/tbody/tr[2]/td[3]/div/span&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;POST /session/0c9fead89aa99331e8e6354c8167396f/element HTTP/1.1&quot; 200 88
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:388 GET http://127.0.0.1:35776/session/0c9fead89aa99331e8e6354c8167396f/element/06d45436-ccbb-4124-9ba9-e251237d3916/text {&quot;id&quot;: &quot;06d45436-ccbb-4124-9ba9-e251237d3916&quot;}
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://127.0.0.1:35776 &quot;GET /session/0c9fead89aa99331e8e6354c8167396f/element/06d45436-ccbb-4124-9ba9-e251237d3916/text HTTP/1.1&quot; 200 18
+DEBUG    selenium.webdriver.remote.remote_connection:remote_connection.py:440 Finished Request
+INFO     root:crm_log.py:30 ------查询成功------<br/></div></td></tr></tbody></table></body></html>
