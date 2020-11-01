@@ -1,0 +1,2 @@
+'e_rfid':'gxaadmin',
+'e_password':'123456'

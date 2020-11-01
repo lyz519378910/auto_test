@@ -1,0 +1,21 @@
+#Case1:
+#  username : user
+#  password : name
+#  username1: admin
+#  password1: 123
+Case2:
+  username:
+    - 1
+    - 2
+
+结果(字典类型，value是列表)：
+{'username': [1, 2]}
+
+--------------------------------------
+
+Case3:
+  username : user
+
+结果(字典类型)：
+{'username': 'user'}
+
