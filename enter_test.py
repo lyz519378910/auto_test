@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     # date_now = time.strftime('%Y-%m-%d', time.localtime())  # 设置时间
     report_path = 'D:\\Python\\auto_test\\seleniumProject\\crm\\crm_report'  # 报告位置
-    report_name = report_path + "/" + 'report_crm.html'       # 报告名称，将时间加入文件
+    report_name = report_path + "/" + 'report_crm_test.html'       # 报告名称，将时间加入文件
     with open(report_name, 'wb+') as file:
         runner = HTMLTestRunner(stream=file, verbosity=1, title='auto_test', description='ui_auto_test')
         runner.run(suite)
