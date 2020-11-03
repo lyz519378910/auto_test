@@ -78,7 +78,7 @@ def compare_dict(dict1_param,dict2_param):
 
 #
 # request = BaseRequest()
-if __name__ == "__main__":
-    handle_request()
+# if __name__ == "__main__":
+#     handle_request()
 #     request = BaseRequest()
 #     request.run_main('get','http://www.baidu.com/login',"{'username':'11111'}")
