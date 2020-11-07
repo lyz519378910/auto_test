@@ -2,6 +2,8 @@ import time
 import re
 
 from appium import webdriver
+from appium.webdriver.common.multi_action import MultiAction
+from appium.webdriver.common.touch_action import TouchAction
 
 
 def login():
@@ -37,38 +39,56 @@ def register():
     reg.click()
 
 def xmyx():
-    # 点击坐标按钮
-    driver.tap([(700,1300)])
+    # 功能一：点击坐标按钮(tap)
+    driver.tap([(450,900)])
     width = driver.get_window_size()['width']
     height = driver.get_window_size()['height']
     print('width:{} height:{}'.format(width,height))
-    time.sleep(2)
-    # 滑动
-    driver.swipe(start_x=678,start_y=500,end_x=123,end_y=500)
-    time.sleep(2)
-    driver.swipe(start_x=678, start_y=500, end_x=123, end_y=500)
-    time.sleep(2)
+    time.sleep(5)
+    # 功能二：滑动(TouchAction)
+    action = TouchAction(driver)
+    action.press(x=600,y=600).wait(1000).move_to(x=100,y=600).release().perform()
+    time.sleep(5)
+    action.press(x=600,y=600).wait(1000).move_to(x=100,y=600).release().perform()
+    time.sleep(5)
     # 点击坐标按钮
     driver.tap([(400,850)])
-    # driver.find_element_by_xpath("//android.widget.TextView[@text='我是男生']").click()
-    # time.sleep(2)
-    # driver.swipe(start_x=360, start_y=1000, end_x=360, end_y=200)
-    # time.sleep(2)
-    # driver.swipe(start_x=360, start_y=200, end_x=360, end_y=1000)
-    # time.sleep(2)
-    # driver.tap(([400, 850]))
+    time.sleep(5)
+    driver.tap([(550,650)])
+    time.sleep(2)
+    # 滑动
+    action.press(x=360, y=1000).wait(1000).move_to(x=360, y=200).release().perform()
+    time.sleep(5)
+    action.press(x=360, y=200).wait(1000).move_to(x=360, y=1000).release().perform()
+    time.sleep(5)
+
+    driver.tap([(100, 800)])
+    time.sleep(5)
+    driver.tap([(100, 400)])
+    time.sleep(5)
+    driver.tap([(350, 350)])
+    time.sleep(5)
+
+    # 功能三：多点触控(MultiAction)
+    action1 = TouchAction(driver)
+    action2 = TouchAction(driver)
+    action1.press(x=200,y=200).wait(2000).move_to(x=500,y=200).release()
+    action2.press(x=200, y=200).wait(2000).move_to(x=200, y=500).release()
+    multi = MultiAction(driver)
+    multi.add(action1,action2)
+    multi.perform()
+
+
+    # 功能四：返回（4）
+    driver.press_keycode(4)
 
 if __name__ == '__main__':
 
-
     cap = {}
-
     cap['platformName'] = 'Android'
-
     # 自己的adb devices
     cap['deviceName'] = '127.0.0.1:21503'
     # app位置
-
     cap['app'] = 'D:\\Git\\auto_test\\Appium_Test\\xmyx.apk'
 
     # cap['appPackage'] = 'com.example.CangKuGuanLiXiTong12345'  # 获取包名
