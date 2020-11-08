@@ -25,14 +25,14 @@ class Test_quote_user:
         self.al = AutoLog()
 
     def test_function(self):
-        self.qa.quote_add('增')
-        self.al.set_log('增加','info')
+        # self.qa.quote_add('增')
+        # self.al.set_log('增加','info')
         self.qs.quote_search('查')
         self.al.set_log('查找','info')
-        self.qu.quote_update('改')
-        self.al.set_log('修改', 'info')
-        self.qd.quote_delete('删')
-        self.al.set_log('删除', 'info')
+        # self.qu.quote_update('改')
+        # self.al.set_log('修改', 'info')
+        # self.qd.quote_delete('删')
+        # self.al.set_log('删除', 'info')
 
 
 

@@ -15,6 +15,6 @@ class Quote_Search:
         self.ro.request_value(method)
 
 
-if __name__ == '__main__':
-    login = Quote_Search()
-    login.quote_search('查')
+# if __name__ == '__main__':
+#     login = Quote_Search()
+#     login.quote_search('查')
