@@ -39,6 +39,7 @@ class BrowserOperation:
     def click_element(self,xpath_param):
         try:
             actions = ActionChains(self.driver)
+            #以后可以改变，如换成id,name等
             element = self.driver.find_element_by_xpath(xpath_param)
             actions.click(element).perform()  # perform()  执行的意思
         except Exception as e:

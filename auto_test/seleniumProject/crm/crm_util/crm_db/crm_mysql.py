@@ -91,9 +91,9 @@ class DbOperation:
             self.conn.close()
         return res
 
-    #一般用在添加时，用刚添加的元素对比数据库中值，有则添加成功
-    # so.search_data("select * from customer_info where customer_id = 50 ",list_site,param)
-    def operation_data(self,sql_s,list_site,param):
+    #一般用在添加时，用刚添加的元素对比数据库中值，有则添加成功(crm添加)
+    # so.search_data("select * from customer_care where care_theme = '节日'",0,'care_theme')
+    def operation_data(self,sql_s,list_site,id_param):
         try:
             # 创建游标(字典方式展示)
             self.cur = self.conn.cursor(cursor=pymysql.cursors.DictCursor)
@@ -103,7 +103,7 @@ class DbOperation:
             res = self.cur.fetchall()
             # 打印数据
             list(res)
-            print(res[list_site][param])
+            print(res[list_site][id_param])
         except Exception as e:
             print(e)
             self.conn.rollback()

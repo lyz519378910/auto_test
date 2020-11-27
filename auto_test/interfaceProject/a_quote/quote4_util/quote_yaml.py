@@ -1,6 +1,5 @@
 import yaml
 
-
 class YamlOperation:
     def __init__(self, locat_file):
         with open(locat_file) as yaml_file:

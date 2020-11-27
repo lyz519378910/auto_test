@@ -16,7 +16,8 @@ class UseBrowser:
     def __init__(self):
         # chrome_options = Options()
         # chrome_options.add_argument('--headless')   #无头启动
-        # ##实例化 驱动
+
+        #实例化 驱动
         # self.driver = webdriver.Chrome('D:\\Python\\auto_test\\seleniumProject\\crm\\chromedriver.exe',chrome_options=chrome_options)
         self.driver = webdriver.Chrome('D:\\Python\\auto_test\\seleniumProject\\crm\\chromedriver.exe')
         #实例化 yaml文件

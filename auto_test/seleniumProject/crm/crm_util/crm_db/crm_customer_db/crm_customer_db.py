@@ -19,6 +19,6 @@ class CustomerOperation:
 
 
 
-if __name__ == '__main__':
-    co = CustomerOperation()
-    co.judge_customer_care_add_correct()
+# if __name__ == '__main__':
+#     co = CustomerOperation()
+#     co.judge_customer_care_add_correct()
